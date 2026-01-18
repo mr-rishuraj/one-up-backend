@@ -1,14 +1,15 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv()  # works locally, ignored in Railway (fine)
 
 
 class Settings:
-    OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
+    def __init__(self):
+        self.OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
 
-    if OPENAI_API_KEY is None:
-        raise RuntimeError("OPENAI_API_KEY not found")
+        if not self.OPENAI_API_KEY:
+            print("⚠️ WARNING: OPENAI_API_KEY not set. AI analysis will not work.")
 
 
 settings = Settings()
