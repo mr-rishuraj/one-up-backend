@@ -3,9 +3,6 @@ from app.config import settings
 
 
 def get_openai_client() -> OpenAI:
-    """
-    Lazily create OpenAI client only when needed.
-    """
     if not settings.OPENAI_API_KEY:
         raise RuntimeError("OPENAI_API_KEY not configured")
 
@@ -14,59 +11,76 @@ def get_openai_client() -> OpenAI:
 
 def analyze_profile(profile_text: str) -> dict:
     """
-    Analyze LinkedIn profile text using OpenAI.
+    Analyze LinkedIn profile text using OpenAI with strong personalization.
     """
 
     client = get_openai_client()
 
     prompt = f"""
-You are an expert LinkedIn recruiter and resume analyst.
+You are a top-tier LinkedIn profile reviewer who works with:
+- startup founders
+- hiring managers
+- early-career engineers
+- ambitious college students
 
-You will receive RAW COPIED TEXT from a LinkedIn profile page.
-This text may contain:
-- Navigation text
-- Buttons
-- Repeated sections
-- Noise and irrelevant UI strings
+You are NOT allowed to give generic advice.
 
-Your job:
-1. Identify the actual profile owner
-2. Extract relevant professional sections ONLY:
-   - Headline
-   - About
-   - Experience
-   - Projects
-   - Skills
-3. Ignore likes, comments, followers, ads, UI labels
+The input is RAW, COPIED LinkedIn profile text.
+It may contain UI noise, buttons, repeated sections, and irrelevant text.
+You must mentally filter that out.
 
-Then evaluate the profile rigorously and return ONLY valid JSON.
+Your task:
+1. Infer who this person is (student / fresher / professional / founder)
+2. Infer their ambition and positioning from the text alone
+3. Critique the profile as if you are reviewing THIS person, not a template
+4. Reference specific phrases or sections from the text
+5. Rewrite weak parts so they sound written FOR THIS PERSON
 
-Return JSON in this exact format:
+Be honest. If something is vague, say why it hurts THIS profile.
+
+Return ONLY valid JSON in the exact format below.
+No markdown. No extra text.
+
+JSON format:
 {{
   "score": number between 0 and 100,
-  "strengths": [3 concise bullets],
-  "weaknesses": [3 concise bullets],
+  "strengths": [
+    "Specific strength referencing the profile text",
+    "Specific strength referencing the profile text",
+    "Specific strength referencing the profile text"
+  ],
+  "weaknesses": [
+    "Specific weakness referencing the profile text",
+    "Specific weakness referencing the profile text",
+    "Specific weakness referencing the profile text"
+  ],
   "improvements": [
     {{
       "section": "headline | about | experience | projects | skills",
-      "current": "What is weak or missing",
-      "suggested": "Concrete improvement",
-      "reason": "Why this improves the profile",
+      "current": "Quote or paraphrase what is currently weak",
+      "suggested": "Rewrite tailored to this person's background and goals",
+      "reason": "Why this change improves THIS profile specifically",
       "impact": "High | Medium | Low"
     }}
   ]
 }}
 
-Rules:
-- JSON only
-- No markdown
-- No explanations
+IMPORTANT RULES:
+- No generic advice
+- No placeholders like "add more details"
+- Suggestions must feel custom-written
+- Assume the person wants to stand out, not be safe
+
+Profile text:
+\"\"\"
+{profile_text}
+\"\"\"
 """
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
+        temperature=0.4,  # slightly higher for creativity but still controlled
     )
 
     return response.choices[0].message.content
