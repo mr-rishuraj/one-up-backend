@@ -11,37 +11,33 @@ def get_openai_client() -> OpenAI:
 
 def analyze_profile(profile_text: str) -> dict:
     """
-    Analyze LinkedIn profile text using OpenAI with strong personalization.
+    Analyze LinkedIn profile text using OpenAI with true personalization.
     """
 
     client = get_openai_client()
 
-    prompt = f"""
+    system_prompt = """
 You are a top-tier LinkedIn profile reviewer who works with:
 - startup founders
 - hiring managers
-- early-career engineers
 - ambitious college students
+- early-career tech professionals
 
-You are NOT allowed to give generic advice.
+Rules you MUST follow:
+- You are NOT allowed to give generic advice
+- You must infer context from the profile text itself
+- Every strength, weakness, and suggestion must feel written for THIS person
+- If input changes, output must change
+- Return ONLY valid JSON (no markdown, no explanations)
+"""
 
-The input is RAW, COPIED LinkedIn profile text.
-It may contain UI noise, buttons, repeated sections, and irrelevant text.
-You must mentally filter that out.
+    user_prompt = f"""
+Analyze the following RAW LinkedIn profile text.
 
-Your task:
-1. Infer who this person is (student / fresher / professional / founder)
-2. Infer their ambition and positioning from the text alone
-3. Critique the profile as if you are reviewing THIS person, not a template
-4. Reference specific phrases or sections from the text
-5. Rewrite weak parts so they sound written FOR THIS PERSON
+This text may include UI noise, repeated sections, buttons, or irrelevant words.
+Ignore those and focus only on the actual profile content.
 
-Be honest. If something is vague, say why it hurts THIS profile.
-
-Return ONLY valid JSON in the exact format below.
-No markdown. No extra text.
-
-JSON format:
+Return JSON in EXACTLY this format:
 {{
   "score": number between 0 and 100,
   "strengths": [
@@ -58,20 +54,14 @@ JSON format:
     {{
       "section": "headline | about | experience | projects | skills",
       "current": "Quote or paraphrase what is currently weak",
-      "suggested": "Rewrite tailored to this person's background and goals",
-      "reason": "Why this change improves THIS profile specifically",
+      "suggested": "Rewrite tailored to this person",
+      "reason": "Why this change improves THIS profile",
       "impact": "High | Medium | Low"
     }}
   ]
 }}
 
-IMPORTANT RULES:
-- No generic advice
-- No placeholders like "add more details"
-- Suggestions must feel custom-written
-- Assume the person wants to stand out, not be safe
-
-Profile text:
+PROFILE TEXT:
 \"\"\"
 {profile_text}
 \"\"\"
@@ -79,8 +69,11 @@ Profile text:
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,  # slightly higher for creativity but still controlled
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.6,
     )
 
     return response.choices[0].message.content
