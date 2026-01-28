@@ -8,15 +8,19 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# 🚨 TEMP: allow all to confirm CORS works
+# ✅ CORS CONFIG — FIXED & PRODUCTION SAFE
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://one-upp.vercel.app",   # PROD frontend (exact match)
+        "http://localhost:3000",        # LOCAL frontend
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# API routes
 app.include_router(analyze_router, prefix="/api")
 
 @app.get("/")
