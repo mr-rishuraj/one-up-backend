@@ -14,6 +14,8 @@ app.add_middleware(
     allow_origins=[
         "https://one-upp.vercel.app",   # PROD frontend (exact match)
         "http://localhost:3000",        # LOCAL frontend
+        "https://one-up.vercel.app",   # PROD frontend (exact match)
+
     ],
     allow_credentials=True,
     allow_methods=["*"],
