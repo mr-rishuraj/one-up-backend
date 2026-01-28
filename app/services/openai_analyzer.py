@@ -11,33 +11,43 @@ def get_openai_client() -> OpenAI:
 
 def analyze_profile(profile_text: str) -> dict:
     """
-    Analyze LinkedIn profile text using OpenAI with true personalization.
+    Analyze LinkedIn profile text using OpenAI with dynamic scoring.
     """
 
     client = get_openai_client()
 
+    # 🔥 SYSTEM PROMPT — FIXES THE 75 SCORE ANCHOR
     system_prompt = """
-You are a top-tier LinkedIn profile reviewer who works with:
-- startup founders
-- hiring managers
-- ambitious college students
-- early-career tech professionals
+You are a top-tier LinkedIn profile reviewer.
 
-Rules you MUST follow:
-- You are NOT allowed to give generic advice
-- You must infer context from the profile text itself
-- Every strength, weakness, and suggestion must feel written for THIS person
-- If input changes, output must change
-- Return ONLY valid JSON (no markdown, no explanations)
+You MUST compute the final score using this rubric:
+
+- Clarity of positioning (0–25)
+- Strength of experience/projects (0–25)
+- Specificity & credibility of claims (0–25)
+- Differentiation vs average profiles (0–25)
+
+Scoring rules:
+- You MUST internally calculate all four subscores
+- Add them to get the final score (0–100)
+- Different profiles MUST produce different scores
+- Weak / vague profiles: 40–55
+- Average profiles: 55–65
+- Strong student profiles: 65–80
+- Exceptional profiles: 80+
+
+You are NOT allowed to default to a fixed or “safe” number.
+Return ONLY the final number as "score".
 """
 
+    # USER PROMPT — DATA ONLY
     user_prompt = f"""
 Analyze the following RAW LinkedIn profile text.
 
-This text may include UI noise, repeated sections, buttons, or irrelevant words.
-Ignore those and focus only on the actual profile content.
+The text may contain UI noise, repeated sections, or irrelevant strings.
+Ignore those and focus only on meaningful profile content.
 
-Return JSON in EXACTLY this format:
+Return ONLY valid JSON in EXACTLY this format:
 {{
   "score": number between 0 and 100,
   "strengths": [
@@ -73,7 +83,7 @@ PROFILE TEXT:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        temperature=0.6,
+        temperature=0.6,  # allows score variance without chaos
     )
 
     return response.choices[0].message.content
