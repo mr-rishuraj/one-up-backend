@@ -14,11 +14,12 @@ app.add_middleware(
 
 app.include_router(analyze_router, prefix="/api")
 
-@app.get("/")
+# 👇 FIX: allow HEAD on root
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return {"status": "ok"}
 
-# 👇 ADD THIS
+# optional but fine to keep
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
     return {"ok": True}
