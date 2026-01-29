@@ -17,3 +17,8 @@ app.include_router(analyze_router, prefix="/api")
 @app.get("/")
 async def root():
     return {"status": "ok"}
+
+# 👇 ADD THIS
+@app.api_route("/health", methods=["GET", "HEAD"])
+async def health():
+    return {"ok": True}
