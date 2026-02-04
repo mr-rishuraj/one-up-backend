@@ -1,5 +1,6 @@
 from openai import OpenAI
 from app.config import settings
+import json
 
 
 def get_openai_client() -> OpenAI:
@@ -11,45 +12,40 @@ def get_openai_client() -> OpenAI:
 
 def analyze_profile(profile_text: str) -> dict:
     """
-    Analyze LinkedIn profile text using OpenAI with dynamic scoring.
+    Analyze LinkedIn profile text and extract STRUCTURED SIGNALS only.
+    Scoring is handled separately in scoring_engine.py
     """
 
     client = get_openai_client()
 
-    # 🔥 SYSTEM PROMPT — FIXES THE 75 SCORE ANCHOR
+    # ✅ SYSTEM PROMPT — STRICT, NO SCORING
     system_prompt = """
-You are a top-tier LinkedIn profile reviewer.
+You are a strict LinkedIn profile evaluator.
 
-You MUST compute the final score using this rubric:
-
-- Clarity of positioning (0–25)
-- Strength of experience/projects (0–25)
-- Specificity & credibility of claims (0–25)
-- Differentiation vs average profiles (0–25)
-
-Scoring rules:
-- You MUST internally calculate all four subscores
-- Add them to get the final score (0–100)
-- Different profiles MUST produce different scores
-- Weak / vague profiles: 40–55
-- Average profiles: 55–65
-- Strong student profiles: 65–80
-- Exceptional profiles: 80+
-
-You are NOT allowed to default to a fixed or “safe” number.
-Return ONLY the final number as "score".
+IMPORTANT RULES:
+- You DO NOT calculate or return any numeric score.
+- You DO NOT rate the profile.
+- You ONLY extract structured signals and qualitative observations.
+- You MUST return valid JSON only.
+- No explanations. No markdown. No extra text.
 """
 
-    # USER PROMPT — DATA ONLY
+    # ✅ USER PROMPT — SIGNAL EXTRACTION + QUALITATIVE FEEDBACK
     user_prompt = f"""
-Analyze the following RAW LinkedIn profile text.
-
-The text may contain UI noise, repeated sections, or irrelevant strings.
-Ignore those and focus only on meaningful profile content.
+Analyze the following LinkedIn profile text.
 
 Return ONLY valid JSON in EXACTLY this format:
+
 {{
-  "score": number between 0 and 100,
+  "signals": {{
+    "headline_clarity": "strong | moderate | weak | missing",
+    "headline_positioning": "strong | generic | missing",
+    "about_structure": "strong | moderate | weak | missing",
+    "about_credibility": "strong | moderate | weak | missing",
+    "experience_impact": "strong | moderate | weak | missing",
+    "differentiation": "strong | moderate | low | missing",
+    "keyword_relevance": "strong | partial | weak | missing"
+  }},
   "strengths": [
     "Specific strength referencing the profile text",
     "Specific strength referencing the profile text",
@@ -83,7 +79,13 @@ PROFILE TEXT:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        temperature=0.6,  # allows score variance without chaos
+        temperature=0,   # 🔒 ABSOLUTE REQUIREMENT
+        top_p=1
     )
 
-    return response.choices[0].message.content
+    raw_content = response.choices[0].message.content
+
+    try:
+        return json.loads(raw_content)
+    except json.JSONDecodeError:
+        raise RuntimeError("OpenAI returned invalid JSON")
